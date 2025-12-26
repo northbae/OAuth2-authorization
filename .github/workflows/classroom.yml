@@ -43,7 +43,7 @@ jobs:
 
   deploy-infra:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.infrastructure == 'true' || github.event_name == 'workflow_dispatch' }}
+    #if: ${{ needs.detect-changes.outputs.infrastructure == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
