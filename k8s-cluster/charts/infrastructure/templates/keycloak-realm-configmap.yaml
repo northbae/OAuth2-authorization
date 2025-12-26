@@ -10,6 +10,14 @@ data:
       "id": "car-rental",
       "realm": "car-rental",
       "enabled": true,
+      "roles": {
+        "realm": [
+          {
+            "name": "user",
+            "description": "Regular user"
+          }
+        ]
+      },
       "users": [
         {
           "username": "test",
@@ -17,13 +25,11 @@ data:
           "credentials": [
             {
               "type": "password",
-              "value": "test"
+              "value": "test",
+              "temporary": false
             }
           ],
-          "realmRoles": [ "user" ],
-          "clientRoles": {
-            "rental-client": ["user"]
-          }
+          "realmRoles": ["user"]
         }
       ],
       "clients": [
@@ -34,8 +40,14 @@ data:
           "secret": "my-super-secret",
           "directAccessGrantsEnabled": true,
           "standardFlowEnabled": true,
-          "authorizationServicesEnabled": true,
-          "redirectUris": ["*"]
+          "serviceAccountsEnabled": false,
+          "authorizationServicesEnabled": false,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"],
+          "protocol": "openid-connect",
+          "attributes": {
+            "access.token.lifespan": "3600"
+          }
         }
       ]
     }
