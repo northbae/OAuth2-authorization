@@ -83,6 +83,7 @@ jobs:
           kubectl describe pod postgres-0 || true
           kubectl describe pod rabbitmq-0 || true
           kubectl describe pod infrastructure-keycloak-0 || true
+          kubectl logs infrastructure-keycloak-0
 
   build:
     needs: [ detect-changes, deploy-infra ]
