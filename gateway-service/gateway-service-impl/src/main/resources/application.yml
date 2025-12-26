@@ -1,0 +1,55 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://keycloak:80/auth/realms/car-rental-system/protocol/openid-connect/certs
+          issuer-uri: http://keycloak:80/auth/realms/car-rental-system
+
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: rabbit
+    password: rabbit
+    virtual-host: vhost
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    resolve-schema-properties: true
+    path: /api
+  swagger-ui:
+    path: /api/doc
+    display-request-duration: true
+    show-extensions: true
+    show-common-extensions: true
+
+feign:
+  okhttp:
+    enabled: true
+  httpclient:
+    enabled: false
+
+circuit-breaker:
+  default-config:
+    max-failure: 3
+    min-success: 1
+    timeout: 10s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+
+keycloak:
+  auth-server-url: http://keycloak:8080/auth
+  realm: car-rental-system
+  client-id: rental-client
+  client-secret: rental-client-secret

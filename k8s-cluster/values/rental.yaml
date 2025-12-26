@@ -1,0 +1,11 @@
+image:
+  repository: "lilien0/rental-service"
+
+service:
+  port: 8060
+  targetPort: 8060
+
+env:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/rental"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  SPRING_DATASOURCE_PASSWORD: "postgres"

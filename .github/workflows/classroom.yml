@@ -1,38 +1,232 @@
 name: GitHub Classroom Workflow
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 jobs:
-  build:
-    name: Autograding
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      infrastructure: ${{ steps.filter.outputs.infrastructure }}
+      cars: ${{ steps.filter.outputs.cars }}
+      rental: ${{ steps.filter.outputs.rental }}
+      payment: ${{ steps.filter.outputs.payment }}
+      gateway: ${{ steps.filter.outputs.gateway }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            infrastructure:
+              - 'k8s-cluster/charts/infrastructure/**'
+            cars:
+              - 'cars-service/**'
+              - 'k8s-cluster/values/cars.yaml'
+              - 'k8s-cluster/charts/microservice/**'
+            rental:
+              - 'rental-service/**'
+              - 'k8s-cluster/values/rental.yaml'
+              - 'k8s-cluster/charts/microservice/**'
+            payment:
+              - 'payment-service/**'
+              - 'k8s-cluster/values/payment.yaml'
+              - 'k8s-cluster/charts/microservice/**'
+            gateway:
+              - 'gateway-service/**'
+              - 'k8s-cluster/values/gateway.yaml'
+              - 'k8s-cluster/charts/microservice/**'
+
+  deploy-infra:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.infrastructure == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Set up Kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up old conflicting resources
+        run: |
+          kubectl delete service postgres --ignore-not-found=true
+          kubectl delete service rabbitmq --ignore-not-found=true
+          
+          kubectl delete deployment postgres --ignore-not-found=true
+          kubectl delete deployment rabbitmq --ignore-not-found=true
+
+      - name: Deploy Infrastructure
+        run: |
+          helm uninstall infrastructure --wait || true
+          helm dependency build k8s-cluster/charts/infrastructure
+          helm upgrade --install infrastructure k8s-cluster/charts/infrastructure \
+            -f k8s-cluster/charts/infrastructure/values.yaml \
+            --wait --timeout 10m
+
+      - name: Debug Infra Failure
+        if: always()
+        run: |
+          kubectl get pods -A
+          kubectl get events --sort-by='.lastTimestamp'
+          kubectl describe pod postgres-0 || true
+          kubectl describe pod rabbitmq-0 || true
+          kubectl describe pod infrastructure-keycloak-0 || true
+
+  build:
+    needs: [ detect-changes, deploy-infra ]
+    if: always() && (needs.deploy-infra.result == 'success' || needs.deploy-infra.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: cars
+            path: cars-service
+          - service: rental
+            path: rental-service
+          - service: payment
+            path: payment-service
+          - service: gateway
+            path: gateway-service
+    steps:
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - uses: docker/setup-buildx-action@v2
 
-      # TODO build, publish to docker hub, deploy to k8s
+      - name: Check if changed
+        id: check
+        run: |
+          IS_CHANGED="${{ needs.detect-changes.outputs[matrix.service] }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then IS_CHANGED="true"; fi
+          echo "changed=$IS_CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Set up JDK 17 (Corretto)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+
+      - name: Maven Build & Test
+        #if: steps.check.outputs.changed == 'true'
+        run: |
+          if [[ "${{ matrix.service }}" == "gateway" ]]; then
+             cd cars-service
+             mvn install -DskipTests
+             cd ..
+          
+             cd rental-service
+             mvn install -DskipTests
+             cd ..
+
+             cd payment-service
+             mvn install -DskipTests
+             cd ..
+          fi
+          cd ${{ matrix.path }}
+          mvn clean package
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      # login to docker hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # build and push
+      - name: Build and Push Docker
+        #if: steps.check.outputs.changed == 'true'
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}-service"
+          TAG="${{ github.sha }}"
+
+          if [[ "${{ matrix.service }}" == "gateway" ]]; then
+          docker build -f gateway-service/Dockerfile -t $IMAGE_NAME:$TAG .
+          else
+          cd ${{ matrix.path }}
+          docker build -t $IMAGE_NAME:$TAG .
+          fi
+          docker push $IMAGE_NAME:$TAG
+
+
+      # deploy
+      - name: Set up Kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Install Helm
+        #if: steps.check.outputs.changed == 'true'
+        uses: azure/setup-helm@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy Service
+        #if: steps.check.outputs.changed == 'true'
+        run: |
+          helm uninstall ${{ matrix.service }}-service --wait || true
+          
+          helm upgrade --install ${{ matrix.service }}-service k8s-cluster/charts/microservice \
+            -f k8s-cluster/values/${{ matrix.service }}.yaml \
+            --set global.imageTag=${{ github.sha }} \
+            --wait --timeout 5m
+
+      - name: Debug Logs
+        if: always()
+        run: |
+          kubectl logs -l app=${{ matrix.service }}-service --tail=100 --all-containers=true
+          kubectl get pods
+          kubectl logs -l app=rental-service
+          kubectl describe pod -l app=rental-service
+
+  integration-tests:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Wait for Gateway
+        run: |
+          kubectl wait -n default -l app=gateway-service pod --for=condition=Ready --timeout 3m
+          sleep 60
 
       - name: Run API Tests
         uses: matt-ball/newman-action@master
         with:
-          collection: <variant>/postman/collection.json
-          environment: <variant>/postman/environment.json
+          collection: v3/postman/collection.json
+          environment: v3/postman/environment.json
           delayRequest: 100
           reporters: '[ "cli" ]'
 
-      - uses: education/autograding@v1
-        id: autograder
+      - name: Autograding
+        uses: education/autograding@v1
         continue-on-error: true
 
-      - name: Github auto grader mark
-        uses: Romanow/google-sheet-autograder-marker@v1.0
-        with:
-          google_token: ${{secrets.GOOGLE_API_KEY}}
-          sheet_id: "1xkgjUX6Qmk7rdJG-QPOToav-HWWtthJjnShIKnw3oIY"
-          homework_number: 5
-          user_column: 'D'
-          column_offset: 'F'
-          mark: "'+"
+      - name: Debug Logs
+        if: failure()
+        run: |
+          kubectl logs -l app=gateway-service --tail=50 --all-containers=true
+          kubectl get pods

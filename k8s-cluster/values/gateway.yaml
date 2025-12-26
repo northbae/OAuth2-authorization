@@ -1,0 +1,47 @@
+image:
+  repository: "lilien0/gateway-service"
+
+service:
+  port: 8080
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: ""
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: gateway-service
+              port:
+                number: 8080
+
+        - path: /auth
+          pathType: Prefix
+          backend:
+            service:
+              name: infrastructure-keycloak
+              port:
+                number: 80
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "200m"
+
+env:
+  CARS_SERVICE_URL: "http://cars-service:8070"
+  RENTAL_SERVICE_URL: "http://rental-service:8060"
+  PAYMENT_SERVICE_URL: "http://payment-service:8050"
+
+  SPRING_RABBITMQ_HOST: "rabbitmq"
+  SPRING_RABBITMQ_PORT: "5672"
+  SPRING_RABBITMQ_USERNAME: "rabbit"
+  SPRING_RABBITMQ_PASSWORD: "rabbit"
+  SPRING_RABBITMQ_VIRTUAL_HOST: "/"
+
+  KEYCLOAK_CLIENT_ID: "rental-client"
+  KEYCLOAK_CLIENT_SECRET: "my-super-secret"

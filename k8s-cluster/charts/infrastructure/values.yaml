@@ -1,0 +1,108 @@
+global:
+  image:
+    registry: public.ecr.aws
+    pullPolicy: Always
+  storageClass: ""
+
+postgresql:
+  fullnameOverride: "postgres"
+
+  image:
+    registry: public.ecr.aws
+    repository: bitnami/postgresql
+    tag: "13"
+
+  auth:
+    postgresPassword: "postgres"
+    username: "postgres"
+    database: "postgres"
+
+  architecture: standalone
+
+  primary:
+    persistence:
+      enabled: false
+
+    livenessProbe:
+      enabled: false
+    readinessProbe:
+      enabled: false
+    startupProbe:
+      enabled: false
+
+    initdb:
+      scriptsConfigMap: postgres-init-scripts
+
+  volumePermissions:
+    enabled: false
+
+rabbitmq:
+  fullnameOverride: "rabbitmq"
+
+  image:
+    registry: public.ecr.aws
+    repository: bitnami/rabbitmq
+    tag: "3.12"
+
+  auth:
+    username: rabbit
+    password: rabbit
+    erlangCookie: "secretcookie"
+
+  persistence:
+    enabled: false
+
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
+  startupProbe:
+    enabled: false
+
+  volumePermissions:
+    enabled: false
+
+keycloak:
+  image:
+    registry: public.ecr.aws
+    repository: bitnami/keycloak
+    tag: "22"
+  auth:
+    adminUser: admin
+    adminPassword: admin
+
+  proxy: edge
+  postgresql:
+    enabled: false
+  externalDatabase:
+    host: postgres
+    user: postgres
+    password: postgres
+    database: keycloak
+
+  extraArgs: "-Dkeycloak.import=dir/opt/bitnami/keycloak/data/import"
+
+  extraVolumes:
+    - name: realm-config
+      configMap:
+        name: keycloak-realm-config
+
+  extraVolumeMounts:
+    - name: realm-config
+      mountPath: "/opt/bitnami/keycloak/data/import"
+      readOnly: true
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    extraHosts:
+      - name: ""
+        path: /auth
+    pathType: Prefix
+
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+      nginx.ingress.kubernetes.io/proxy-buffers: "4 256k"
+      nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "256k"
+
+  httpRelativePath: "/auth/"

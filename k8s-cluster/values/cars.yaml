@@ -1,0 +1,11 @@
+image:
+  repository: "lilien0/cars-service"
+
+service:
+  port: 8070
+  targetPort: 8070
+
+env:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/cars"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  SPRING_DATASOURCE_PASSWORD: "postgres"

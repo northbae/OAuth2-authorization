@@ -1,0 +1,88 @@
+version: "3"
+
+services:
+  postgres:
+    image: library/postgres:13
+    container_name: postgres
+    restart: on-failure
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./postgres/:/docker-entrypoint-initdb.d/
+    ports:
+      - "5432:5432"
+    networks:
+      - microservices-network
+
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: rabbitmq
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Moscow
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: rabbit
+      RABBITMQ_DEFAULT_VHOST: vhost
+    volumes:
+      - ./rabbitmq:/var/lib/rabbitmq￼
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - microservices-network
+
+  gateway-service:
+    image: ${DOCKER_USERNAME:-local}/gateway-service:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rabbitmq
+      - cars-service
+      - rental-service
+      - payment-service
+    networks:
+      - microservices-network
+
+  cars-service:
+    image: ${DOCKER_USERNAME:-local}/cars-service:${IMAGE_TAG:-latest}
+    build: cars-service/
+    ports:
+      - "8070:8070"
+    depends_on:
+      - postgres
+    networks:
+      - microservices-network
+
+  rental-service:
+    image: ${DOCKER_USERNAME:-local}/rental-service:${IMAGE_TAG:-latest}
+    build: rental-service/
+    ports:
+      - "8060:8060"
+    depends_on:
+      - postgres
+    networks:
+      - microservices-network
+
+  payment-service:
+    image: ${DOCKER_USERNAME:-local}/payment-service:${IMAGE_TAG:-latest}
+    build: payment-service/
+    ports:
+      - "8050:8050"
+    depends_on:
+      - postgres
+    networks:
+      - microservices-network
+
+volumes:
+  db-data:
+
+networks:
+  microservices-network:
+    driver: bridge

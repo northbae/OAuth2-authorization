@@ -1,0 +1,11 @@
+image:
+  repository: "lilien0/payment-service"
+
+service:
+  port: 8050
+  targetPort: 8050
+
+env:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/payment"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  SPRING_DATASOURCE_PASSWORD: "postgres"
