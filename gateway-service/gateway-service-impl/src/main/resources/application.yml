@@ -3,8 +3,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://infrastructure-keycloak:80/auth/realms/car-rental-system/protocol/openid-connect/certs
-          issuer-uri: http://infrastructure-keycloak:80/auth/realms/car-rental-system
+          jwk-set-uri: http://infrastructure-keycloak:80/auth/realms/car-rental/protocol/openid-connect/certs
+          issuer-uri: http://infrastructure-keycloak:80/auth/realms/car-rental
 
   rabbitmq:
     host: rabbitmq
@@ -47,3 +47,8 @@ management:
     health:
       show-details: always
       show-components: always
+
+keycloak:
+  token-uri: ${KEYCLOAK_TOKEN_URI:http://infrastructure-keycloak:80/auth/realms/car-rental/protocol/openid-connect/token}
+  client-id: ${KEYCLOAK_CLIENT_ID:rental-client}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:my-super-secret}
