@@ -191,7 +191,7 @@ jobs:
       - name: Debug Logs
         if: always()
         run: |
-          kubectl logs -l app=${{ matrix.service }}-service --tail=100 --all-containers=true
+          kubectl logs -l app=${{ matrix.service }}-service --tail=300 --all-containers=true
           kubectl get pods
           kubectl logs -l app=rental-service
           kubectl describe pod -l app=rental-service
