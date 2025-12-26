@@ -29,8 +29,11 @@ ingress:
 
 resources:
   requests:
-    memory: "512Mi"
-    cpu: "200m"
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "384Mi"
+    cpu: "300m"
 
 env:
   CARS_SERVICE_URL: "http://cars-service:8070"

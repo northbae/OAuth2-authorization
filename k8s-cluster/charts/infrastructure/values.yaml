@@ -1,66 +1,43 @@
-global:
-  image:
-    registry: public.ecr.aws
-    pullPolicy: Always
-  storageClass: ""
-
 postgresql:
   fullnameOverride: "postgres"
-
   image:
     registry: public.ecr.aws
     repository: bitnami/postgresql
     tag: "13"
-
   auth:
     postgresPassword: "postgres"
     username: "postgres"
     database: "postgres"
-
-  architecture: standalone
-
   primary:
     persistence:
       enabled: false
-
-    livenessProbe:
-      enabled: false
-    readinessProbe:
-      enabled: false
-    startupProbe:
-      enabled: false
-
-    initdb:
-      scriptsConfigMap: postgres-init-scripts
-
-  volumePermissions:
-    enabled: false
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
 
 rabbitmq:
   fullnameOverride: "rabbitmq"
-
   image:
     registry: public.ecr.aws
     repository: bitnami/rabbitmq
     tag: "3.12"
-
   auth:
     username: rabbit
     password: rabbit
     erlangCookie: "secretcookie"
-
   persistence:
     enabled: false
-
-  livenessProbe:
-    enabled: false
-  readinessProbe:
-    enabled: false
-  startupProbe:
-    enabled: false
-
-  volumePermissions:
-    enabled: false
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
 
 keycloak:
   image:
@@ -70,7 +47,6 @@ keycloak:
   auth:
     adminUser: admin
     adminPassword: admin
-
   proxy: edge
   postgresql:
     enabled: false
@@ -80,7 +56,13 @@ keycloak:
     password: postgres
     database: keycloak
 
-  extraArgs: "--import-realm"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
 
   extraVolumes:
     - name: realm-config
@@ -95,14 +77,8 @@ keycloak:
   ingress:
     enabled: true
     ingressClassName: nginx
-    extraHosts:
-      - name: ""
-        path: /auth
     pathType: Prefix
-
     annotations:
       nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
-      nginx.ingress.kubernetes.io/proxy-buffers: "4 256k"
-      nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "256k"
 
   httpRelativePath: "/auth/"

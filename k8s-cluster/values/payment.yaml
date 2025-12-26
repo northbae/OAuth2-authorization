@@ -5,6 +5,14 @@ service:
   port: 8050
   targetPort: 8050
 
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "384Mi"
+    cpu: "300m"
+
 env:
   SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/payment"
   SPRING_DATASOURCE_USERNAME: "postgres"
