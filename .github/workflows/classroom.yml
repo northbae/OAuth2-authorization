@@ -2,10 +2,10 @@ name: GitHub Classroom Workflow
 on:
   push:
     branches:
-      - dev
+      - master
   pull_request:
     branches:
-      - dev
+      - master
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -43,7 +43,7 @@ jobs:
 
   deploy-infra:
     needs: detect-changes
-    #if: ${{ needs.detect-changes.outputs.infrastructure == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.infrastructure == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +83,7 @@ jobs:
           kubectl describe pod postgres-0 || true
           kubectl describe pod rabbitmq-0 || true
           kubectl describe pod infrastructure-keycloak-0 || true
+          kubectl logs infrastructure-keycloak-0
 
   build:
     needs: [ detect-changes, deploy-infra ]
@@ -121,7 +122,7 @@ jobs:
           distribution: 'corretto'
 
       - name: Maven Build & Test
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         run: |
           if [[ "${{ matrix.service }}" == "gateway" ]]; then
              cd cars-service
@@ -150,7 +151,7 @@ jobs:
 
       # build and push
       - name: Build and Push Docker
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         run: |
           IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}-service"
           TAG="${{ github.sha }}"
@@ -172,13 +173,13 @@ jobs:
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
       - name: Install Helm
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         uses: azure/setup-helm@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy Service
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         run: |
           helm uninstall ${{ matrix.service }}-service --wait || true
           
@@ -190,7 +191,7 @@ jobs:
       - name: Debug Logs
         if: always()
         run: |
-          kubectl logs -l app=${{ matrix.service }}-service --tail=100 --all-containers=true
+          kubectl logs -l app=${{ matrix.service }}-service --tail=300 --all-containers=true
           kubectl get pods
           kubectl logs -l app=rental-service
           kubectl describe pod -l app=rental-service
