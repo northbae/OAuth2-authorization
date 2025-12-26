@@ -68,6 +68,7 @@ keycloak:
     - "/opt/bitnami/keycloak/bin/kc.sh"
     - "start-dev"
     - "--import-realm"
+    - "--http-relative-path=/auth/"
 
   extraVolumes:
     - name: realm-config
