@@ -9,3 +9,6 @@ env:
   SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/cars"
   SPRING_DATASOURCE_USERNAME: "postgres"
   SPRING_DATASOURCE_PASSWORD: "postgres"
+
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "http://keycloak:80/auth/realms/car-rental"
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: "http://keycloak:80/auth/realms/car-rental/protocol/openid-connect/certs"

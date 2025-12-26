@@ -10,14 +10,7 @@ import kz.bmstu.kritinina.dto.RentalRequest;
 import kz.bmstu.kritinina.dto.RentalResponse;
 import kz.bmstu.kritinina.dto.ValidationErrorResponse;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +19,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RequestMapping("api/v1")
 public interface RentalController {
-    public static final String USERNAME_HEADER = "X-User-Name";
 
     @GetMapping("/manage/health")
     ResponseEntity<Void> getHealth();
@@ -41,14 +33,14 @@ public interface RentalController {
                             schema = @Schema(implementation = ErrorResponse.class)) })
     })
     @GetMapping("/rental/{rentalUid}")
-    ResponseEntity<RentalResponse> getRentalById(@PathVariable("rentalUid") UUID rentalUid, @RequestHeader(USERNAME_HEADER) String username);
+    ResponseEntity<RentalResponse> getRentalById(@PathVariable("rentalUid") UUID rentalUid);
 
     @Operation(summary = "Получить информацию о всех арендах пользователя")
     @ApiResponse(responseCode = "200", description = "Информация обо всех арендах",
             content = {@Content(mediaType = APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = RentalResponse.class))})
     @GetMapping("/rental")
-    ResponseEntity<List<RentalResponse>> getAllRentals(@RequestHeader(USERNAME_HEADER) String username);
+    ResponseEntity<List<RentalResponse>> getAllRentals();
 
     @Operation(summary = "Забронировать автомобиль")
     @ApiResponses(value = {
@@ -60,7 +52,7 @@ public interface RentalController {
                             schema = @Schema(implementation = ValidationErrorResponse.class)) })
     })
     @PostMapping("/rental")
-    ResponseEntity<RentalResponse> createRental(@RequestHeader(USERNAME_HEADER) String username, @RequestBody RentalRequest rentalRequest);
+    ResponseEntity<RentalResponse> createRental(@RequestBody RentalRequest rentalRequest);
 
     @Operation(summary = "Завершение аренды автомобиля")
     @ApiResponses(value = {
@@ -70,7 +62,7 @@ public interface RentalController {
                             schema = @Schema(implementation = ErrorResponse.class)) })
     })
     @PostMapping("/rental/{rentalUid}/finish")
-    ResponseEntity<Void> finishRental(@PathVariable("rentalUid") UUID rentalUid, @RequestHeader(USERNAME_HEADER) String username);
+    ResponseEntity<Void> finishRental(@PathVariable("rentalUid") UUID rentalUid);
 
     @Operation(summary = "Отмена аренды автомобиля")
     @ApiResponses(value = {
@@ -80,5 +72,5 @@ public interface RentalController {
                             schema = @Schema(implementation = ErrorResponse.class)) })
     })
     @DeleteMapping("/rental/{rentalUid}")
-    ResponseEntity<Void> cancelRental(@PathVariable("rentalUid") UUID rentalUid, @RequestHeader(USERNAME_HEADER) String username);
+    ResponseEntity<Void> cancelRental(@PathVariable("rentalUid") UUID rentalUid);
 }

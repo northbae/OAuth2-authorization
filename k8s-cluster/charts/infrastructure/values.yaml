@@ -80,7 +80,7 @@ keycloak:
     password: postgres
     database: keycloak
 
-  extraArgs: "-Dkeycloak.import=dir/opt/bitnami/keycloak/data/import"
+  extraArgs: "--import-realm"
 
   extraVolumes:
     - name: realm-config

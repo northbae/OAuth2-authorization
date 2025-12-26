@@ -16,6 +16,4 @@ public class TokenResponse {
 
     @JsonProperty("token_type")
     private String tokenType;
-
-    private String scope;
 }

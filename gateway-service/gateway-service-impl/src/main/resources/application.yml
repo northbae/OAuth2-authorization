@@ -47,9 +47,3 @@ management:
     health:
       show-details: always
       show-components: always
-
-keycloak:
-  auth-server-url: http://keycloak:8080/auth
-  realm: car-rental-system
-  client-id: rental-client
-  client-secret: rental-client-secret

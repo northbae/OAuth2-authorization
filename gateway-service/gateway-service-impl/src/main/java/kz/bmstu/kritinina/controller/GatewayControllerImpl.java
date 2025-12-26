@@ -1,20 +1,15 @@
 package kz.bmstu.kritinina.controller;
 
 import kz.bmstu.kritinina.config.CarPage;
-import kz.bmstu.kritinina.dto.AuthRequest;
 import kz.bmstu.kritinina.dto.BookCarDto;
 import kz.bmstu.kritinina.dto.CarDto;
 import kz.bmstu.kritinina.dto.RentalCreationDto;
 import kz.bmstu.kritinina.dto.RentalDto;
-import kz.bmstu.kritinina.dto.TokenResponse;
 import kz.bmstu.kritinina.service.GatewayService;
+import kz.bmstu.kritinina.utils.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -22,7 +17,8 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-public class GatewayControllerImpl implements GatewayController{
+public class GatewayControllerImpl implements GatewayController {
+
     private final GatewayService gatewayService;
 
     @Override
@@ -36,43 +32,29 @@ public class GatewayControllerImpl implements GatewayController{
     }
 
     @Override
-    public ResponseEntity<List<RentalDto>> getRental(String username) {
-        return ResponseEntity.ok(gatewayService.getRental(username));
+    public ResponseEntity<List<RentalDto>> getRental() {
+        return ResponseEntity.ok(gatewayService.getRental());
     }
 
     @Override
-    public ResponseEntity<RentalDto> getRental( String username, UUID rentalUid) {
-        return ResponseEntity.ok(gatewayService.getRental(username, rentalUid));
+    public ResponseEntity<RentalDto> getRental(UUID rentalUid) {
+        return ResponseEntity.ok(gatewayService.getRental(rentalUid));
     }
 
     @Override
-    public ResponseEntity<RentalCreationDto> bookCar(String username, BookCarDto bookCarDto) {
-        return ResponseEntity.ok(gatewayService.bookCar(username, bookCarDto));
+    public ResponseEntity<RentalCreationDto> bookCar(BookCarDto bookCarDto) {
+        return ResponseEntity.ok(gatewayService.bookCar(bookCarDto));
     }
 
     @Override
-    public ResponseEntity<Void> finishRental(String username, UUID rentalUid) {
-        gatewayService.finishRental(username, rentalUid);
+    public ResponseEntity<Void> finishRental(UUID rentalUid) {
+        gatewayService.finishRental(rentalUid);
         return ResponseEntity.noContent().build();
     }
 
     @Override
-    public ResponseEntity<Void> cancelRental(String username, UUID rentalUid) {
-        gatewayService.cancelRental(username, rentalUid);
+    public ResponseEntity<Void> cancelRental(UUID rentalUid) {
+        gatewayService.cancelRental(rentalUid);
         return ResponseEntity.noContent().build();
-    }
-
-    @Override
-    public ResponseEntity<TokenResponse> authorize(@RequestBody AuthRequest request) {
-        TokenResponse token = authService.authenticate(
-                request.getUsername(),
-                request.getPassword()
-        );
-        return ResponseEntity.ok(token);
-    }
-
-    @Override
-    public ResponseEntity<String> callback(@RequestParam String code) {
-        return ResponseEntity.ok("Callback received");
     }
 }

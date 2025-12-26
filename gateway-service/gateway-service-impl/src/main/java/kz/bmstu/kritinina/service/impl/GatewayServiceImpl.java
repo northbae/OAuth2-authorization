@@ -58,7 +58,7 @@ public class GatewayServiceImpl implements GatewayService {
     private final String ANSWER_FOR_SERVICE_UNAVAILABLE = "Сервис недоступен";
 
     @Override
-    public CarPage<CarDto> getAllCars(Boolean showAll, Pageable pageable)  {
+    public CarPage<CarDto> getAllCars(Boolean showAll, Pageable pageable) {
         int originalPage = pageable.getPageNumber();
         Pageable adjustedPageable = PageRequest.of(
                 Math.max(0, originalPage - 1),
@@ -68,15 +68,14 @@ public class GatewayServiceImpl implements GatewayService {
         try {
             Page<CarDto> result = getAllCarsWithCircuitBreaker(showAll, adjustedPageable);
             return gatewayMapper.toCarPage(result);
-        }
-        catch (CircuitBreakerException e) {
+        } catch (CircuitBreakerException e) {
             throw new ServiceUnavailableException("Cars Service unavailable");
         }
     }
 
     @Override
-    public List<RentalDto> getRental(String username) {
-        List<RentalResponse> rentalResponses = getRentalResponsesWithCircuitBreaker(username);
+    public List<RentalDto> getRental() {
+        List<RentalResponse> rentalResponses = getRentalResponsesWithCircuitBreaker();
         List<RentalDto> rentalDtos = rentalResponses.stream().map(gatewayMapper::toRentalDto).toList();
         for (int i = 0; i < rentalDtos.size(); i++) {
             PaymentDto paymentDto = getPaymentWithFallback(rentalResponses.get(i).getPaymentUid());
@@ -88,8 +87,8 @@ public class GatewayServiceImpl implements GatewayService {
     }
 
     @Override
-    public RentalDto getRental(String username, UUID rentalUid) {
-        RentalResponse rentalResponse = getRentalByIdWithCircuitBreaker(rentalUid, username);
+    public RentalDto getRental(UUID rentalUid) {
+        RentalResponse rentalResponse = getRentalByIdWithCircuitBreaker(rentalUid);
         CarBaseDto carBaseDto = getCarWithFallback(rentalResponse.getCarUid());
         try {
             PaymentDto paymentDto = getPaymentWithFallback(rentalResponse.getPaymentUid());
@@ -97,8 +96,7 @@ public class GatewayServiceImpl implements GatewayService {
             rentalDto.setCar(carBaseDto);
             rentalDto.setPayment(paymentDto);
             return rentalDto;
-        }
-        catch (ServiceUnavailableException e) {
+        } catch (ServiceUnavailableException e) {
             RentalDto rentalDto = gatewayMapper.toRentalDto(rentalResponse);
             rentalDto.setCar(carBaseDto);
             rentalDto.setPayment(new HashMap<>());
@@ -107,9 +105,8 @@ public class GatewayServiceImpl implements GatewayService {
     }
 
     @Override
-    public RentalCreationDto bookCar(String username, BookCarDto bookCarDto) {
+    public RentalCreationDto bookCar(BookCarDto bookCarDto) {
         SagaContext context = new SagaContext();
-        context.put("username", username);
         context.put("bookCarDto", bookCarDto);
 
         List<SagaStep<?>> steps = createBookCarSteps();
@@ -167,7 +164,6 @@ public class GatewayServiceImpl implements GatewayService {
                         .critical(true)
                         .action(ctx -> {
                             BookCarDto dto = ctx.get("bookCarDto", BookCarDto.class);
-                            String user = ctx.get("username", String.class);
                             CarResponse car = ctx.getResult("check-and-reserve-car", CarResponse.class);
                             PaymentResponse payment = ctx.getResult("create-payment", PaymentResponse.class);
 
@@ -178,100 +174,90 @@ public class GatewayServiceImpl implements GatewayService {
                                     .dateTo(dto.getDateTo())
                                     .build();
 
-                            return rentalClient.createRental(user, rentalRequest).getBody();
+                            return rentalClient.createRental(rentalRequest).getBody();
                         })
                         .compensation(ctx -> {
                             RentalResponse rental = ctx.getResult("create-rental", RentalResponse.class);
-                            String user = ctx.get("username", String.class);
                             if (rental != null) {
-                                rentalClient.cancelRental(rental.getRentalUid(), user);
+                                rentalClient.cancelRental(rental.getRentalUid());
                             }
                         })
-                        .serviceName("Payment")
+                        .serviceName("Rental")
                         .build()
         );
     }
 
     @Override
-    public void finishRental(String username, UUID rentalUid) {
-        RentalResponse rentalResponse = rentalClient.getRentalById(rentalUid, username).getBody();
+    public void finishRental(UUID rentalUid) {
+        RentalResponse rentalResponse = rentalClient.getRentalById(rentalUid).getBody();
         carClient.changeAvailability(rentalResponse.getCarUid());
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.getOrCreate("rental-service");
         try {
-            circuitBreaker.execute(() -> rentalClient.finishRental(rentalUid, username));
-        }
-        catch (CircuitBreakerException e) {
-            sendFinishRentalToQueue(rentalUid, username);
+            circuitBreaker.execute(() -> rentalClient.finishRental(rentalUid));
+        } catch (CircuitBreakerException e) {
+            sendFinishRentalToQueue(rentalUid);
         }
     }
 
     @Override
-    public void cancelRental(String username, UUID rentalUid) {
-        // что тут сделать = хрен пойми
-        RentalResponse rentalResponse = rentalClient.getRentalById(rentalUid, username).getBody();
+    public void cancelRental(UUID rentalUid) {
+        RentalResponse rentalResponse = rentalClient.getRentalById(rentalUid).getBody();
         carClient.changeAvailability(rentalResponse.getCarUid());
         CircuitBreaker circuitBreakerRental = circuitBreakerRegistry.getOrCreate("rental-service");
         try {
-            circuitBreakerRental.execute(() -> rentalClient.cancelRental(rentalUid, username));
-        }
-        catch (CircuitBreakerException e) {
-            sendCancelRentalToQueue(rentalUid, username, rentalResponse.getPaymentUid());
+            circuitBreakerRental.execute(() -> rentalClient.cancelRental(rentalUid));
+        } catch (CircuitBreakerException e) {
+            sendCancelRentalToQueue(rentalUid, rentalResponse.getPaymentUid());
         }
         CircuitBreaker circuitBreakerPayment = circuitBreakerRegistry.getOrCreate("payment-service");
         try {
             circuitBreakerPayment.execute(() -> paymentClient.cancelPayment(rentalResponse.getPaymentUid()));
-        }
-        catch (CircuitBreakerException e) {
-            sendCancelPaymentToQueue(rentalResponse.getPaymentUid(), rentalUid, username);
+        } catch (CircuitBreakerException e) {
+            sendCancelPaymentToQueue(rentalResponse.getPaymentUid(), rentalUid);
         }
     }
 
     private Page<CarDto> getAllCarsWithCircuitBreaker(Boolean showAll, Pageable pageable) {
         CircuitBreaker circuitBreakerCars = circuitBreakerRegistry.getOrCreate("cars-service");
         try {
-            return circuitBreakerCars.execute(()->carClient.getCars(showAll, pageable).
+            return circuitBreakerCars.execute(() -> carClient.getCars(showAll, pageable).
                     getBody().map(gatewayMapper::toCarDto));
         } catch (CircuitBreakerException e) {
             throw new ServiceUnavailableException(ANSWER_FOR_SERVICE_UNAVAILABLE);
         }
     }
 
-    // критично
-    private List<RentalResponse> getRentalResponsesWithCircuitBreaker(String username) {
+    private List<RentalResponse> getRentalResponsesWithCircuitBreaker() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.getOrCreate("rentals-service");
         try {
             return circuitBreaker.execute(() ->
-                    rentalClient.getAllRentals(username).getBody().stream().toList());
+                    rentalClient.getAllRentals().getBody().stream().toList());
         } catch (CircuitBreakerException e) {
             throw new ServiceUnavailableException(ANSWER_FOR_SERVICE_UNAVAILABLE);
         }
     }
 
-    // критично
-    private RentalResponse getRentalByIdWithCircuitBreaker(UUID rentalUid, String username) {
+    private RentalResponse getRentalByIdWithCircuitBreaker(UUID rentalUid) {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.getOrCreate("rental-service");
         try {
             return circuitBreaker.execute(() ->
-                    rentalClient.getRentalById(rentalUid, username).getBody());
+                    rentalClient.getRentalById(rentalUid).getBody());
         } catch (CircuitBreakerException e) {
             throw new ServiceUnavailableException(ANSWER_FOR_SERVICE_UNAVAILABLE);
         }
     }
 
-    // не критично
     private PaymentDto getPaymentWithFallback(UUID paymentUid) {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.getOrCreate("payment-service");
         try {
             Optional<PaymentResponse> paymentResponse = circuitBreaker.execute(() ->
                     paymentClient.getPayment(paymentUid).getBody());
             return gatewayMapper.toPaymentDto(paymentResponse.get());
-        }
-        catch (CircuitBreakerException e) {
+        } catch (CircuitBreakerException e) {
             throw new ServiceUnavailableException("");
         }
     }
 
-    // не критично
     private CarBaseDto getCarWithFallback(UUID carUid) {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.getOrCreate("cars-service");
         try {
@@ -289,35 +275,23 @@ public class GatewayServiceImpl implements GatewayService {
         return fallback;
     }
 
-    private void sendFinishRentalToQueue(UUID rentalUid, String username) {
+    private void sendFinishRentalToQueue(UUID rentalUid) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("rentalUid", rentalUid.toString());
-        payload.put("username", username);
-        retryProducer.sendToRetryQueue(
-                "FINISH_RENTAL",
-                payload
-        );
+        retryProducer.sendToRetryQueue("FINISH_RENTAL", payload);
     }
 
-    private void sendCancelRentalToQueue(UUID rentalUid, String username, UUID paymentUid) {
+    private void sendCancelRentalToQueue(UUID rentalUid, UUID paymentUid) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("rentalUid", rentalUid.toString());
-        payload.put("username", username);
         payload.put("paymentUid", paymentUid.toString());
-        retryProducer.sendToRetryQueue(
-                "CANCEL_RENTAL",
-                payload
-        );
+        retryProducer.sendToRetryQueue("CANCEL_RENTAL", payload);
     }
 
-    private void sendCancelPaymentToQueue(UUID paymentUid, UUID rentalUid, String username) {
+    private void sendCancelPaymentToQueue(UUID paymentUid, UUID rentalUid) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("paymentUid", paymentUid.toString());
         payload.put("rentalUid", rentalUid.toString());
-        payload.put("username", username);
-        retryProducer.sendToRetryQueue(
-                "CANCEL_PAYMENT",
-                payload
-        );
+        retryProducer.sendToRetryQueue("CANCEL_PAYMENT", payload);
     }
 }
