@@ -43,7 +43,7 @@ jobs:
 
   deploy-infra:
     needs: detect-changes
-    #if: ${{ needs.detect-changes.outputs.infrastructure == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.infrastructure == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -122,7 +122,7 @@ jobs:
           distribution: 'corretto'
 
       - name: Maven Build & Test
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         run: |
           if [[ "${{ matrix.service }}" == "gateway" ]]; then
              cd cars-service
@@ -151,7 +151,7 @@ jobs:
 
       # build and push
       - name: Build and Push Docker
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         run: |
           IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}-service"
           TAG="${{ github.sha }}"
@@ -173,13 +173,13 @@ jobs:
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
       - name: Install Helm
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         uses: azure/setup-helm@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy Service
-        #if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true'
         run: |
           helm uninstall ${{ matrix.service }}-service --wait || true
           

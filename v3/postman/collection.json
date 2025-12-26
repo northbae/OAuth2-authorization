@@ -1011,7 +1011,7 @@
 	"variable": [
 		{
 			"key": "serviceUrl",
-			"value": "http://95.174.89.139:8080"
+			"value": "http://localhost:8080"
 		},
 		{
 			"key": "carUid",

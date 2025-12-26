@@ -23,6 +23,7 @@ public class SecurityConfig {
                         // Открытые endpoints для авторизации
                         .requestMatchers("/api/v1/authorize").permitAll()
                         .requestMatchers("/api/v1/callback").permitAll()
+                        .requestMatchers("/api/v1/oauth/token").permitAll()
                         // Health checks
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/health").permitAll()

@@ -16,20 +16,21 @@ public class AuthControllerImpl implements AuthController {
     private final AuthService authService;
 
     @Override
-    public ResponseEntity<?> login(LoginRequest request) {
-        try {
-            TokenResponse token = authService.login(request);
-            return ResponseEntity.ok(token);
-        } catch (HttpClientErrorException.Unauthorized e) {
-            // 401 от Keycloak (неверный логин/пароль)
-            return ResponseEntity.status(401).body("Invalid credentials");
-        } catch (HttpClientErrorException.BadRequest e) {
-            // 400 от Keycloak (неверный grant_type, client_id и т.д.)
-            return ResponseEntity.status(400).body("Bad request: " + e.getResponseBodyAsString());
-        } catch (RestClientException e) {
-            return ResponseEntity.status(503).body("Keycloak unavailable: " + e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Authentication failed: " + e.getMessage());
-        }
+    public ResponseEntity<TokenResponse> login(LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @Override
+    public ResponseEntity<TokenResponse> getToken(String grantType, String username, String password, String clientId, String clientSecret, String scope
+    ) {
+        LoginRequest request = new LoginRequest();
+        request.setUsername(username);
+        request.setPassword(password);
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @Override
+    public ResponseEntity<String> callback(String code) {
+        return ResponseEntity.ok("Callback received");
     }
 }

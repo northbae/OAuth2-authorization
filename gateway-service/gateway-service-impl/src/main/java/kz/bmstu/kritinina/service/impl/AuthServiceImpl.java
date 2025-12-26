@@ -36,7 +36,7 @@ public class AuthServiceImpl implements AuthService {
         formData.add("client_secret", clientSecret);
         formData.add("username", request.getUsername());
         formData.add("password", request.getPassword());
-        formData.add("scope", "openid profile email");
+        formData.add("scope", "openid profile email");  // Вот это!
 
         return restClient.post()
                 .uri(tokenUri)
