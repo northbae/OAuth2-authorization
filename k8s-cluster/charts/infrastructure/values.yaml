@@ -1,43 +1,66 @@
+global:
+  image:
+    registry: public.ecr.aws
+    pullPolicy: Always
+  storageClass: ""
+
 postgresql:
   fullnameOverride: "postgres"
+
   image:
     registry: public.ecr.aws
     repository: bitnami/postgresql
     tag: "13"
+
   auth:
     postgresPassword: "postgres"
     username: "postgres"
     database: "postgres"
+
+  architecture: standalone
+
   primary:
     persistence:
       enabled: false
-    resources:
-      requests:
-        memory: "128Mi"
-        cpu: "50m"
-      limits:
-        memory: "256Mi"
-        cpu: "200m"
+
+    livenessProbe:
+      enabled: false
+    readinessProbe:
+      enabled: false
+    startupProbe:
+      enabled: false
+
+    initdb:
+      scriptsConfigMap: postgres-init-scripts
+
+  volumePermissions:
+    enabled: false
 
 rabbitmq:
   fullnameOverride: "rabbitmq"
+
   image:
     registry: public.ecr.aws
     repository: bitnami/rabbitmq
     tag: "3.12"
+
   auth:
     username: rabbit
     password: rabbit
     erlangCookie: "secretcookie"
+
   persistence:
     enabled: false
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "50m"
-    limits:
-      memory: "256Mi"
-      cpu: "200m"
+
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
+  startupProbe:
+    enabled: false
+
+  volumePermissions:
+    enabled: false
 
 keycloak:
   image:
