@@ -64,6 +64,11 @@ keycloak:
       memory: "512Mi"
       cpu: "500m"
 
+  command:
+    - "/opt/bitnami/keycloak/bin/kc.sh"
+    - "start-dev"
+    - "--import-realm"
+
   extraVolumes:
     - name: realm-config
       configMap:
