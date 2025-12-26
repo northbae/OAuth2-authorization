@@ -3,8 +3,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://keycloak:80/auth/realms/car-rental-system/protocol/openid-connect/certs
-          issuer-uri: http://keycloak:80/auth/realms/car-rental-system
+          jwk-set-uri: http://infrastructure-keycloak:80/auth/realms/car-rental-system/protocol/openid-connect/certs
+          issuer-uri: http://infrastructure-keycloak:80/auth/realms/car-rental-system
 
   rabbitmq:
     host: rabbitmq
