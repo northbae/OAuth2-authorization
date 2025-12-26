@@ -56,14 +56,12 @@ public class RetryConsumer {
 
     private void handleFinishRental(RetryMessage message) {
         UUID rentalUid = UUID.fromString((String) message.getPayload().get("rentalUid"));
-        String username = (String) message.getPayload().get("username");
-        rentalClient.finishRental(rentalUid, username);
+        rentalClient.finishRental(rentalUid);
     }
 
     private void handleCancelRental(RetryMessage message) {
         UUID rentalUid = UUID.fromString((String) message.getPayload().get("rentalUid"));
-        String username = (String) message.getPayload().get("username");
-        rentalClient.cancelRental(rentalUid, username);
+        rentalClient.cancelRental(rentalUid);
     }
 
     private void handleCancelPayment(RetryMessage message) {
